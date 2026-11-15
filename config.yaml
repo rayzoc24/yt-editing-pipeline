@@ -1,0 +1,73 @@
+# ==============================================================================
+# YouTube Automated Raw Video Editing Pipeline Configuration
+# ==============================================================================
+
+pipeline:
+  # Folders
+  raw_dir: "raw"
+  out_dir: "out"
+  temp_dir: "temp"
+  archive_processed: true          # Move raw video to raw/processed after editing
+  archive_dir: "raw/processed"
+
+# ------------------------------------------------------------------------------
+# 1. Dead-Air & Silence Removal (Jump Cuts)
+# ------------------------------------------------------------------------------
+silence_removal:
+  enabled: true
+  noise_threshold_db: -32          # Audio below this dB level is considered silence (-30 to -35 dB typical)
+  min_silence_duration: 0.5        # Minimum silent pause (in seconds) to cut out (0.4s - 0.7s)
+  padding_duration: 0.12           # Safe margin (in seconds) before and after speech to avoid clipping words
+
+# ------------------------------------------------------------------------------
+# 2. Audio Cleaning & Vocal Enhancement (Noise Removal)
+# ------------------------------------------------------------------------------
+audio_cleaning:
+  enabled: true
+  denoise_amount_db: 12            # FFT denoiser strength in dB (8-16 dB cleanly removes fan/room noise)
+  highpass_frequency: 75           # High-pass filter (Hz) to eliminate table bumps, AC low rumble
+  loudness_normalize: true         # Standardizes loudness to YouTube speech levels (-14 LUFS)
+
+# ------------------------------------------------------------------------------
+# 3. Dynamic Subtitles (Word-level timestamps & Creative Emphasis)
+# ------------------------------------------------------------------------------
+subtitles:
+  enabled: true
+  model_size: "base"               # Options: "tiny", "base", "small", "medium" ("base" is fast and accurate)
+  language: "en"                   # "en" or null for automatic multi-language detection
+  max_words_per_segment: 4         # Modern punchy pacing: 3 to 5 words per subtitle line
+  burn_into_video: true            # Burn subtitles directly into output video
+  save_subtitle_files: true        # Also export standalone .ass and .srt subtitle files
+
+  # ASS Subtitle Visual Styling
+  style:
+    font_name: "Arial Black"       # High-visibility bold font (e.g. Arial Black, Impact, Trebuchet MS)
+    font_size: 20                  # Base font size
+    primary_color: "&H00FFFFFF"    # ASS format &HAABBGGRR: White
+    outline_color: "&H00000000"    # Black outline for crisp contrast against any background
+    outline_width: 3.0             # Outline thickness
+    shadow_depth: 1.5              # Drop shadow
+    alignment: 2                   # 2 = Bottom-Center, 5 = Screen-Center
+    margin_v: 60                   # Vertical margin from screen edge
+
+  # Emphasis & Bold Highlighting
+  emphasis:
+    enabled: true
+    bold_all: false                # If true, entire text is bold; if false, only emphasized words are bold
+    highlight_color: "&H002BF7F7"  # Vibrant Gold / Yellow highlight for emphasized words (&HAABBGGRR)
+    highlight_bold: true           # Add {\b1} to emphasized words
+    strategy: "smart"              # "smart": auto-highlights numbers, exclamations, key action & descriptive words
+
+# ------------------------------------------------------------------------------
+# 4. Folder Watcher Settings
+# ------------------------------------------------------------------------------
+watcher:
+  poll_interval_sec: 2             # How frequently to check raw folder
+  settle_time_sec: 4               # Wait until file stops copying/growing before starting
+  supported_extensions:
+    - ".mp4"
+    - ".mov"
+    - ".mkv"
+    - ".webm"
+    - ".avi"
+
