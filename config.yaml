@@ -59,7 +59,14 @@ subtitles:
     strategy: "smart"              # "smart": auto-highlights numbers, exclamations, key action & descriptive words
 
 # ------------------------------------------------------------------------------
-# 4. Folder Watcher Settings
+# 4. Export Options
+# ------------------------------------------------------------------------------
+export:
+  shorts: true                     # Also generate a 9:16 vertical center-cropped version for YouTube Shorts/Reels
+  resolution: 1080                 # Default export resolution
+
+# ------------------------------------------------------------------------------
+# 5. Folder Watcher Settings
 # ------------------------------------------------------------------------------
 watcher:
   poll_interval_sec: 2             # How frequently to check raw folder

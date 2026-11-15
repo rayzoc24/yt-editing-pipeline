@@ -136,9 +136,9 @@ def group_words_into_lines(words, max_words=4, max_pause=0.35, max_duration=2.2)
 
     return lines
 
-def generate_subtitles(video_path, output_ass_path, output_srt_path=None, config=None):
+def generate_subtitles(video_path, output_ass_path, output_srt_path=None, output_txt_path=None, config=None):
     """
-    Transcribes video and writes stylized ASS and SRT subtitles.
+    Transcribes video and writes stylized ASS, SRT subtitles, and plain-text transcript.
     """
     if config is None:
         config = {}
@@ -240,6 +240,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             f.write("\n".join(srt_events))
         print(f"[Subtitles] Saved plain SRT subtitles to: {output_srt_path}")
 
+    # Write Plain-text Transcript
+    if output_txt_path:
+        Path(output_txt_path).parent.mkdir(parents=True, exist_ok=True)
+        full_transcript = " ".join(" ".join(w["word"] for w in chunk) for chunk in chunks)
+        with open(output_txt_path, "w", encoding="utf-8") as f:
+            f.write(full_transcript + "\n")
+        print(f"[Subtitles] Saved plain transcript to: {output_txt_path}")
+
     return output_ass_path, output_srt_path
 
 def burn_subtitles_into_video(input_video, ass_subtitle_path, output_video):
@@ -273,5 +281,39 @@ def burn_subtitles_into_video(input_video, ass_subtitle_path, output_video):
     print(f"[Subtitles] Burning subtitles into video: {Path(output_video).name}...")
     run_command(cmd)
     print("[Subtitles] Subtitles successfully burned in.")
+    return output_video
+
+def generate_shorts_crop(input_video, output_video, ass_subtitle_path=None):
+    """
+    Center-crops horizontal video to 9:16 vertical ratio and optionally burns subtitles.
+    """
+    ffmpeg_exe, _ = get_ffmpeg_paths()
+    Path(output_video).parent.mkdir(parents=True, exist_ok=True)
+
+    filter_chain = "crop=ih*9/16:ih:(iw-ow)/2:0"
+    if ass_subtitle_path and Path(ass_subtitle_path).exists():
+        clean_ass_path = str(Path(ass_subtitle_path).resolve()).replace("\\", "/")
+        if ":" in clean_ass_path:
+            drive, rest = clean_ass_path.split(":", 1)
+            escaped_ass = f"{drive}\\:{rest}"
+        else:
+            escaped_ass = clean_ass_path
+        filter_chain += f",subtitles=filename='{escaped_ass}'"
+
+    cmd = [
+        ffmpeg_exe,
+        "-y",
+        "-i", str(input_video),
+        "-vf", filter_chain,
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "18",
+        "-c:a", "copy",
+        str(output_video)
+    ]
+
+    print(f"[Shorts] Generating 9:16 vertical video: {Path(output_video).name}...")
+    run_command(cmd)
+    print("[Shorts] 9:16 Shorts export completed.")
     return output_video
 

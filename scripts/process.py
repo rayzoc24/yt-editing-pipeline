@@ -11,15 +11,15 @@ if str(SCRIPT_DIR) not in sys.path:
 from pipeline import load_config, process_video
 from watcher import run_watcher, scan_and_process
 
-def process_single(file_path, config):
+def process_single(file_path, config, **kwargs):
     """Processes a single video file."""
     p = Path(file_path).resolve()
     if not p.is_file():
         print(f"Error: Video file not found: {p}")
         sys.exit(1)
-    process_video(p, config=config)
+    process_video(p, config=config, **kwargs)
 
-def process_all_existing(config):
+def process_all_existing(config, **kwargs):
     """Processes all video files currently in raw/."""
     pipe_cfg = config.get("pipeline", {})
     watch_cfg = config.get("watcher", {})
@@ -41,7 +41,7 @@ def process_all_existing(config):
         print(f" - {f.name}")
 
     for f in files:
-        process_video(f, config=config)
+        process_video(f, config=config, **kwargs)
 
 def run_self_test(config):
     """
@@ -95,16 +95,18 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python scripts/process.py --watch          # Run continuous folder watcher (default)
-  python scripts/process.py --file raw/ep1.mp4 # Edit a specific video
+  python scripts/process.py raw/video1.mp4   # Edit a specific video
+  python scripts/process.py --watch          # Run continuous folder watcher
   python scripts/process.py --all            # Process all videos currently in raw/
   python scripts/process.py --test           # Run system self-test
         """
     )
-    parser.add_argument("--watch", "-w", action="store_true", help="Start continuous folder watcher (default)")
+    parser.add_argument("video", nargs="?", type=str, help="Path to raw video file to process")
+    parser.add_argument("--watch", "-w", action="store_true", help="Start continuous folder watcher")
     parser.add_argument("--file", "-f", type=str, help="Process a single video file")
     parser.add_argument("--all", "-a", action="store_true", help="Process all videos in raw/")
     parser.add_argument("--test", "-t", action="store_true", help="Run a self-test with a synthetic video")
+    parser.add_argument("--no-short", action="store_true", help="Skip 9:16 Shorts export")
     parser.add_argument("--no-silence", action="store_true", help="Disable dead-air removal")
     parser.add_argument("--no-denoise", action="store_true", help="Disable audio noise reduction")
     parser.add_argument("--no-subtitles", action="store_true", help="Disable subtitles")
@@ -121,14 +123,18 @@ Examples:
     if args.no_subtitles:
         config["subtitles"]["enabled"] = False
 
+    target_file = args.video or args.file
+
     if args.test:
         run_self_test(config)
-    elif args.file:
-        process_single(args.file, config)
+    elif target_file:
+        process_single(target_file, config, no_short=args.no_short)
     elif args.all:
-        process_all_existing(config)
+        process_all_existing(config, no_short=args.no_short)
+    elif args.watch:
+        run_watcher()
     else:
-        # Default behavior: run the continuous watcher
+        # Default behavior: run continuous watcher
         run_watcher()
 
 if __name__ == "__main__":

@@ -1,115 +1,171 @@
-# 🎬 Automated YouTube Raw Video Editing Pipeline
+# YT Pipeline
 
-An automated 90% raw editing pipeline built with Python and FFmpeg. As soon as you record or drop a video into `raw/`, this pipeline automatically processes and exports a polished cut to `out/`.
+A local, automated Python and FFmpeg pipeline that handles the mechanical, repetitive parts of video editing for YouTube: removing dead air, normalizing audio, generating creative bold captions, and exporting a 9:16 Shorts cut. You record, it produces a polished rough cut, and you finish it manually.
+
+It does **not** write your content, generate synthetic AI videos, or upload anything. Everything runs locally and is 100% free.
 
 ---
 
-## ⚡ What It Does Automatically
+## ⚡ What it does
 
-1. **Dead-Air & Silence Removal (Jump Cuts)**
-   - Analyzes audio volume and detects silent pauses (default: sounds below `-32 dB` lasting longer than `0.5s`).
-   - Cuts out dead air while preserving natural speech padding (`0.12s`) so words never get clipped.
-   - Smoothly jump-cuts video segments together.
+Given one recording in `raw/`, it produces in `out/`:
 
-2. **Noise Removal & Vocal Enhancement**
-   - Applies adaptive FFT noise reduction (`afftdn`) to remove computer fans, AC noise, and background hiss.
-   - High-pass filter (`75 Hz`) removes table bumps, mic rumbles, and electrical hums.
-   - Standardizes broadcast speech volume to YouTube's target (-14 LUFS) with dynamic loudness normalization.
-
-3. **Creative Bold Subtitles**
-   - Uses local `faster-whisper` for word-level speech-to-text.
-   - Breaks text into punchy 3-5 word subtitle lines.
-   - **Smart Emphasis Highlighting**: Automatically detects key keywords, numbers, and impact words, applying **Bold** (`{\b1}`) and vibrant gold/yellow highlighting (`#F7F72B`) over crisp white text with a black outline and soft shadow.
-   - Burns subtitles directly into the video and also exports `.ass` and `.srt` files.
-
-4. **Continuous Drop-Folder Automation (Watcher)**
-   - Monitors `raw/` in the background.
-   - Waits for OBS / screen recordings or camera transfers to finish copying before starting.
-   - Archives raw source files to `raw/processed/` when finished.
+| Output | Description |
+|---|---|
+| `<name>_edit.mp4` | 1080p horizontal video with silences removed, audio cleaned/normalized, and subtitles burned in |
+| `<name>.srt` | Standard captions file (for uploading to YouTube Studio) |
+| `<name>.ass` | Advanced SubStation Alpha stylized captions with bold emphasis |
+| `<name>_transcript.txt` | Plain-text transcript (useful for writing titles, descriptions, and chapters) |
+| `<name>_short.mp4` | 9:16 center-cropped vertical version with captions burned in for YouTube Shorts |
 
 ---
 
 ## 📂 Project Structure
 
 ```
-youtube/
-├── .gitignore                # Prevents large video files & cache from being tracked
-├── config.yaml               # Pipeline settings (silence sensitivity, fonts, colors)
-├── README.MD                 # Project documentation & usage guide
+yt-pipeline/
+├── .gitignore                # Ignores heavy video binaries, temp files, and caches
+├── config.yaml               # Pipeline settings (silence sensitivity, audio, subtitles)
+├── README.md                 # Project documentation and guide
 ├── requirements.txt          # Python dependencies (faster-whisper, pyyaml, watchdog)
-├── start_watcher.bat         # 1-click launcher to run the automated folder watcher
-├── raw/                      # 📥 DROP YOUR RAW RECORDINGS HERE (.mp4, .mov, .mkv)
+├── start_watcher.bat         # 1-click launcher to run background folder watcher
+├── raw/                      # 📥 Place your raw recordings here (.mp4, .mov, .mkv)
 │   ├── .gitkeep
-│   └── processed/            # 📦 Completed raw recordings are safely moved here
+│   └── processed/            # 📦 Finished recordings are archived here
 │       └── .gitkeep
-├── out/                      # 📤 EDITED VIDEOS & SUBTITLES APPEAR HERE
+├── out/                      # 📤 Generated edited videos, shorts, and transcripts
 │   └── .gitkeep
 └── scripts/
-    ├── process.py            # Primary CLI tool
-    ├── watcher.py            # Automatic folder watcher
+    ├── process.py            # Main entry point (CLI & positional arguments)
+    ├── watcher.py            # Continuous folder watcher
     ├── pipeline.py           # Core multi-step editing coordinator
     ├── silence_remover.py    # Dead-air silence detection & cutting
-    ├── audio_enhancer.py     # Noise reduction & loudness normalization
-    ├── subtitle_generator.py # Word-level transcription, styling & burn-in
+    ├── audio_enhancer.py     # FFT noise reduction & YouTube loudness normalization
+    ├── subtitle_generator.py # Word-level transcription, bold styling & 9:16 crop
     └── ffmpeg_utils.py       # FFmpeg integration & hardware checks
 ```
 
 ---
 
-## 🛠️ Prerequisites & Installation
+## 🛠️ Requirements & Installation
+
+- **OS**: Windows 10/11, macOS, or Linux
+- **Python**: 3.10 or newer
+- **FFmpeg**: Required for audio/video processing and subtitle rendering
 
 ### 1. Install FFmpeg
 - **Windows (Winget)**:
   ```powershell
   winget install Gyan.FFmpeg
   ```
+  *(Restart your terminal after installation, then verify with `ffmpeg -version`)*
 - **macOS (Homebrew)**:
   ```bash
   brew install ffmpeg
   ```
-- **Linux (Ubuntu/Debian)**:
+- **Linux (Debian/Ubuntu)**:
   ```bash
   sudo apt update && sudo apt install ffmpeg
   ```
 
 ### 2. Install Python Dependencies
-```powershell
+```bash
 pip install -r requirements.txt
 ```
+*(The first run downloads the local Whisper model ~140MB, which needs an internet connection once.)*
 
----
-
-## 🚀 How to Use
-
-### Mode 1: Automated Background Watcher (Recommended)
-Double-click `start_watcher.bat` (or run in terminal):
-```powershell
-python scripts/process.py --watch
-```
-Now, simply save or copy any video file into `raw/`. The pipeline will automatically detect it, edit it, and place the finished video in `out/`.
-
-### Mode 2: Edit a Single File
-```powershell
-python scripts/process.py --file raw/my_video.mp4
-```
-
-### Mode 3: Edit All Videos in `raw/`
-```powershell
-python scripts/process.py --all
-```
-
-### Mode 4: Self-Test Verification
-```powershell
+### 3. Verify Setup
+Run the built-in self-test to verify FFmpeg, audio filters, and subtitle engines:
+```bash
 python scripts/process.py --test
 ```
 
 ---
 
-## ⚙️ Customization (`config.yaml`)
+## 🚀 Usage
 
-You can adjust any settings in [config.yaml](file:///c:/Users/Shreeyash%20kulkarni/OneDrive/Desktop/youtube/config.yaml):
-- **Silence cut sensitivity**: change `noise_threshold_db` (e.g. `-30` for aggressive cuts, `-35` for subtle cuts) and `min_silence_duration` (e.g. `0.4` seconds).
-- **Noise reduction level**: change `denoise_amount_db` (default `12 dB`).
-- **Subtitle font**: change `font_name` (e.g., `Arial Black`, `Montserrat`, `Impact`).
-- **Highlight color**: change `highlight_color` (ASS hex format: `&HAABBGGRR`).
-- **Burn-in**: set `burn_into_video: false` if you only want standalone `.ass`/`.srt` files for Premiere / DaVinci Resolve.
+### Option 1: Automated Background Watcher (Recommended)
+Double-click `start_watcher.bat` or run:
+```bash
+python scripts/process.py --watch
+```
+Now, simply save your OBS recordings or drop video files into `raw/`. The pipeline automatically detects when writing is complete, edits the video, and saves the output to `out/`.
+
+### Option 2: Edit a Single File
+```bash
+python scripts/process.py raw/video1.mp4
+```
+
+Optional CLI flags:
+```bash
+python scripts/process.py raw/video1.mp4 --no-short     # Skip the 9:16 Shorts export
+python scripts/process.py raw/video1.mp4 --no-silence   # Skip silence removal
+python scripts/process.py raw/video1.mp4 --no-denoise   # Skip audio cleaning
+python scripts/process.py raw/video1.mp4 --config my.yaml
+```
+
+### Option 3: Process All Videos in `raw/`
+```bash
+python scripts/process.py --all
+```
+
+---
+
+## ⚙️ Configuration (`config.yaml`)
+
+```yaml
+# Silence & Dead-Air Removal
+silence_removal:
+  enabled: true
+  noise_threshold_db: -32          # Audio below this dB level is considered silence
+  min_silence_duration: 0.5        # Minimum silent pause (in seconds) to cut out
+  padding_duration: 0.12           # Safe margin (seconds) kept around speech
+
+# Audio Cleaning & Normalization
+audio_cleaning:
+  enabled: true
+  denoise_amount_db: 12            # FFT denoiser strength in dB
+  highpass_frequency: 75           # Cuts low rumble below 75 Hz
+  loudness_normalize: true         # Broadcast speech standard (-14 LUFS)
+
+# Dynamic Subtitles
+subtitles:
+  enabled: true
+  model_size: "base"               # tiny, base, small, medium
+  language: "en"                   # "en", "hi", etc. or null for auto-detect
+  max_words_per_segment: 4         # Punchy pacing (3-5 words per line)
+  burn_into_video: true            # Burn subtitles into final export
+  style:
+    font_name: "Arial Black"
+    font_size: 20
+    primary_color: "&H00FFFFFF"    # White
+  emphasis:
+    enabled: true
+    highlight_color: "&H002BF7F7"  # Vibrant Gold / Yellow
+    highlight_bold: true           # Adds bold formatting to key words
+
+# Export Options
+export:
+  shorts: true                     # Generate 9:16 vertical center-crop
+  resolution: 1080
+```
+
+---
+
+## 💡 Recommended Workflow
+
+1. Plan the video with bullet points rather than a word-for-word script.
+2. Record in a reasonably quiet room. If you make a mistake, pause for 2 seconds and re-say the sentence.
+3. Save or drop the video into `raw/`.
+4. The pipeline automatically removes dead pauses, cleans audio, creates captions with bold keywords, and exports the rough cut.
+5. Review `<name>_edit.mp4` in DaVinci Resolve, Premiere Pro, or CapCut if you want to add B-roll, music, or trim specific takes.
+6. Use `<name>_transcript.txt` to draft title, video description, and timestamp chapters.
+
+---
+
+## ⚠️ Known Limitations
+
+- **Content judgment**: Silence removal cuts quiet pauses; it cannot tell a bad take from a good take. Always review your rough cut.
+- **Whisper names/jargon**: Whisper occasionally mishears proper nouns or niche technical jargon. Skim the generated `.srt` before uploading captions.
+- **Center-cropping**: Automatic 9:16 center-cropping works great for talking heads and webcam footage, but might cut off edges on full-desktop screen recordings. Check `<name>_short.mp4` before posting.
+- **CPU vs GPU**: CPU transcription with `base` takes only seconds. If you switch to `medium` or `large` models, consider using an NVIDIA GPU (CUDA).

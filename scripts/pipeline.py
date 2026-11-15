@@ -13,7 +13,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from ffmpeg_utils import get_ffmpeg_paths, get_media_info
 from silence_remover import remove_dead_air
 from audio_enhancer import enhance_audio
-from subtitle_generator import generate_subtitles, burn_subtitles_into_video
+from subtitle_generator import generate_subtitles, burn_subtitles_into_video, generate_shorts_crop
 
 def load_config(config_path="config.yaml"):
     """Loads configuration from YAML file."""
@@ -27,7 +27,7 @@ def load_config(config_path="config.yaml"):
     with open(p, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-def process_video(video_path, config=None, custom_output_name=None):
+def process_video(video_path, config=None, custom_output_name=None, **kwargs):
     """
     Main automated editing pipeline:
       Raw Video 
@@ -102,6 +102,7 @@ def process_video(video_path, config=None, custom_output_name=None):
     # --------------------------------------------------------------------------
     ass_file = out_dir / f"{base_name}.ass"
     srt_file = out_dir / f"{base_name}.srt"
+    txt_file = out_dir / f"{base_name}_transcript.txt"
     subtitles_generated = False
 
     if sub_cfg.get("enabled", True):
@@ -110,6 +111,7 @@ def process_video(video_path, config=None, custom_output_name=None):
             video_path=current_video,
             output_ass_path=ass_file,
             output_srt_path=srt_file if sub_cfg.get("save_subtitle_files", True) else None,
+            output_txt_path=txt_file,
             config=config
         )
         subtitles_generated = bool(gen_ass and Path(gen_ass).exists())
@@ -119,7 +121,7 @@ def process_video(video_path, config=None, custom_output_name=None):
     # --------------------------------------------------------------------------
     # Step 4: Final Assembly & Burn-in
     # --------------------------------------------------------------------------
-    final_output = out_dir / f"{base_name}_edited.mp4"
+    final_output = out_dir / f"{base_name}_edit.mp4"
     print("\n[Step 4/4] Finalizing Output Video...")
 
     if subtitles_generated and sub_cfg.get("burn_into_video", True):
@@ -132,6 +134,21 @@ def process_video(video_path, config=None, custom_output_name=None):
     else:
         print(f"[Export] Copying finalized video to: {final_output.name}")
         shutil.copy2(current_video, final_output)
+
+    # --------------------------------------------------------------------------
+    # Optional Shorts 9:16 Center-Crop Export
+    # --------------------------------------------------------------------------
+    short_output = None
+    if config.get("export", {}).get("shorts", True) and not kwargs.get("no_short", False):
+        short_output = out_dir / f"{base_name}_short.mp4"
+        try:
+            generate_shorts_crop(
+                input_video=current_video,
+                output_video=short_output,
+                ass_subtitle_path=ass_file if subtitles_generated else None
+            )
+        except Exception as e:
+            print(f"[Shorts] Notice: Shorts export skipped: {e}")
 
     # --------------------------------------------------------------------------
     # Step 5: Archive & Cleanup
