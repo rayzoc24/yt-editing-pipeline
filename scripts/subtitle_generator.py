@@ -8,6 +8,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.append(str(SCRIPT_DIR))
 
 from ffmpeg_utils import get_ffmpeg_paths, get_media_info, run_command
+from hinglish_utils import devanagari_to_hinglish, is_devanagari
 
 # Common filler/stop words that should NOT be emphasized
 STOP_WORDS = {
@@ -84,39 +85,109 @@ def is_emphasis_word(word_clean, is_longest=False):
 
     return False
 
-def transcribe_audio_words(audio_or_video_path, model_size="base", language="en", hinglish=True, initial_prompt=None):
+def transcribe_with_google_hinglish(video_path, temp_dir="temp", chunk_duration=4.0):
     """
-    Transcribes audio with faster-whisper and extracts word-level timestamps.
-    Enhanced for unclear audio (dynamic temperature search) and Hinglish support.
+    Transcribes audio using Google Speech Recognition (hi-IN) and transliterates
+    to natural Hinglish (Latin alphabet). Avoids Whisper's forced English translations
+    and hallucination on background music.
     """
+    import speech_recognition as sr
+    ffmpeg_exe, _ = get_ffmpeg_paths()
+    r = sr.Recognizer()
+    media_info = get_media_info(video_path)
+    total_duration = media_info.get("duration", 0)
+
+    if total_duration <= 0:
+        return []
+
+    print(f"[Subtitles - Hinglish] Transcribing speech in native Hinglish (no English translation)...")
+    all_words = []
+    Path(temp_dir).mkdir(parents=True, exist_ok=True)
+
+    start = 0.0
+    while start < total_duration:
+        end = min(total_duration, start + chunk_duration)
+        seg_wav = Path(temp_dir) / f"h_chunk_{int(start * 100)}.wav"
+
+        run_command([
+            ffmpeg_exe, "-y",
+            "-ss", str(start),
+            "-to", str(end),
+            "-i", str(video_path),
+            "-vn", "-ar", "16000", "-ac", "1",
+            str(seg_wav)
+        ], check=False)
+
+        if seg_wav.exists():
+            try:
+                with sr.AudioFile(str(seg_wav)) as src:
+                    audio_data = r.record(src)
+                hi_text = r.recognize_google(audio_data, language="hi-IN")
+                hinglish_text = devanagari_to_hinglish(hi_text)
+                w_list = hinglish_text.split()
+                if w_list:
+                    dur_per_word = (end - start) / len(w_list)
+                    for i, w in enumerate(w_list):
+                        all_words.append({
+                            "word": w,
+                            "start": round(start + i * dur_per_word, 2),
+                            "end": round(start + (i + 1) * dur_per_word, 2),
+                            "probability": 0.95
+                        })
+            except Exception:
+                # Silence, noise, or music - no speech detected in this chunk
+                pass
+            finally:
+                if seg_wav.exists():
+                    try:
+                        seg_wav.unlink()
+                    except Exception:
+                        pass
+
+        start += chunk_duration
+
+    print(f"[Subtitles - Hinglish] Successfully transcribed {len(all_words)} Hinglish words.")
+    return all_words
+
+def transcribe_audio_words(audio_or_video_path, model_size="base", language="en", hinglish=True, initial_prompt=None, temp_dir="temp"):
+    """
+    Transcribes audio with word-level timestamps.
+    For Hinglish: Uses native recognition + transliteration to prevent English translation.
+    For English: Uses local Faster-Whisper.
+    """
+    if hinglish or language in ["hinglish", "hi-en"]:
+        try:
+            google_words = transcribe_with_google_hinglish(audio_or_video_path, temp_dir=temp_dir)
+            if google_words:
+                return google_words
+            print("[Subtitles - Hinglish] Falling back to local Whisper engine...")
+        except Exception as e:
+            print(f"[Subtitles - Hinglish] Notice: Google engine skipped ({e}), falling back to local Whisper...")
+
     from faster_whisper import WhisperModel
 
     print(f"[Subtitles] Loading Whisper model ('{model_size}')...")
     model = WhisperModel(model_size, device="cpu", compute_type="int8")
 
-    # If Hinglish is enabled, prime Whisper to output conversational Hinglish in English/Latin script
     prompt_text = initial_prompt
     transcribe_lang = language
-    if hinglish:
-        if not prompt_text:
-            prompt_text = (
-                "Aapka swagat hai video me. Today we will explain this topic step by step. "
-                "Yeh bohot important point hai, dhyan se suniye. Video ko like karein, share karein aur subscribe karein. "
-                "Bhai yeh trick bilkul mast hai, dekhiye aur samjhiye."
-            )
-        if transcribe_lang in ["hinglish", "hi-en"]:
-            transcribe_lang = "en"
 
-    print(f"[Subtitles] Transcribing audio with word-level timestamps (Hinglish: {hinglish})...")
+    if hinglish or language in ["hinglish", "hi-en"]:
+        transcribe_lang = "hi"
+        if not prompt_text:
+            prompt_text = "गाड़ी, घर, सब कुछ, GTA 5, वीडियो, सब्सक्राइब, भाई, यार, आज हम बात करेंगे।"
+
+    print(f"[Subtitles] Transcribing audio with word-level timestamps (Mode: {'Hinglish' if hinglish else transcribe_lang})...")
     segments, info = model.transcribe(
         str(audio_or_video_path),
         language=transcribe_lang,
+        task="transcribe",
         initial_prompt=prompt_text,
         word_timestamps=True,
         beam_size=5,
         vad_filter=True,
-        condition_on_previous_text=False,  # Prevents repeating hallucination loops on unclear/quiet audio
-        temperature=[0.0, 0.2, 0.4, 0.8],  # Dynamic fallback when audio is muffled or noisy
+        condition_on_previous_text=False,
+        temperature=[0.0, 0.2, 0.4, 0.8],
         no_speech_threshold=0.5
     )
 
@@ -124,8 +195,11 @@ def transcribe_audio_words(audio_or_video_path, model_size="base", language="en"
     for segment in segments:
         if segment.words:
             for word_obj in segment.words:
+                raw_w = word_obj.word.strip()
+                if hinglish and is_devanagari(raw_w):
+                    raw_w = devanagari_to_hinglish(raw_w)
                 all_words.append({
-                    "word": word_obj.word.strip(),
+                    "word": raw_w,
                     "start": word_obj.start,
                     "end": word_obj.end,
                     "probability": word_obj.probability

@@ -36,8 +36,8 @@ audio_cleaning:
 subtitles:
   enabled: true
   model_size: "base"               # Options: "tiny", "base", "small", "medium" ("small" recommended for heavy accents/noise)
-  language: "en"                   # "en" (or null for auto-detect)
-  hinglish: true                   # Primes Whisper with conversational Hinglish Latin-script vocabulary
+  language: "hinglish"             # "hinglish" (Hindi spoken words written in English letters, NO translation), "en" (pure English), or "hi"
+  hinglish: true                   # Converts Hindi speech into natural Latin Hinglish (Gaadi, ghar, sab kuch...)
   max_words_per_segment: 4         # Modern punchy pacing: 3 to 5 words per subtitle line
   burn_into_video: true            # Burn subtitles directly into output video
   save_subtitle_files: true        # Also export standalone .ass and .srt subtitle files
