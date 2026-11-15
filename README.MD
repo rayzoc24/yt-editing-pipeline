@@ -95,13 +95,16 @@ Now, simply save your OBS recordings or drop video files into `raw/`. The pipeli
 ```bash
 python scripts/process.py raw/video1.mp4
 ```
+*When running, the script asks you to choose:*
+- `[1] Long-Form` -> Normal 16:9 YouTube widescreen (original ratio as-is).
+- `[2] Short-Form` -> 9:16 vertical crop for YouTube Shorts / Reels.
 
-Optional CLI flags:
+You can also skip the prompt using direct CLI flags:
 ```bash
-python scripts/process.py raw/video1.mp4 --no-short     # Skip the 9:16 Shorts export
-python scripts/process.py raw/video1.mp4 --no-silence   # Skip silence removal
-python scripts/process.py raw/video1.mp4 --no-denoise   # Skip audio cleaning
-python scripts/process.py raw/video1.mp4 --config my.yaml
+python scripts/process.py raw/video1.mp4 --long      # Force standard 16:9 normal ratio
+python scripts/process.py raw/video1.mp4 --short     # Force 9:16 vertical crop
+python scripts/process.py raw/video1.mp4 --no-silence # Skip silence removal
+python scripts/process.py raw/video1.mp4 --no-denoise # Skip audio cleaning
 ```
 
 ### Option 3: Process All Videos in `raw/`

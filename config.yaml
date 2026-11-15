@@ -59,11 +59,11 @@ subtitles:
     strategy: "smart"              # "smart": auto-highlights numbers, exclamations, key action & descriptive words
 
 # ------------------------------------------------------------------------------
-# 4. Export Options
+# 4. Aspect Ratio & Format Selection
 # ------------------------------------------------------------------------------
-export:
-  shorts: true                     # Also generate a 9:16 vertical center-cropped version for YouTube Shorts/Reels
-  resolution: 1080                 # Default export resolution
+format:
+  preference: "ask"                # "ask" (prompts you every time), "long" (always 16:9 normal), or "short" (always 9:16 vertical)
+  resolution: 1080                 # Base export resolution
 
 # ------------------------------------------------------------------------------
 # 5. Folder Watcher Settings

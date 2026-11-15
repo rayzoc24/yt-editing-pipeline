@@ -136,9 +136,10 @@ def group_words_into_lines(words, max_words=4, max_pause=0.35, max_duration=2.2)
 
     return lines
 
-def generate_subtitles(video_path, output_ass_path, output_srt_path=None, output_txt_path=None, config=None):
+def generate_subtitles(video_path, output_ass_path, output_srt_path=None, output_txt_path=None, config=None, is_short=False):
     """
     Transcribes video and writes stylized ASS, SRT subtitles, and plain-text transcript.
+    Adapts font size and positioning for standard 16:9 or vertical 9:16 Shorts.
     """
     if config is None:
         config = {}
@@ -152,13 +153,25 @@ def generate_subtitles(video_path, output_ass_path, output_srt_path=None, output
     max_words = sub_cfg.get("max_words_per_segment", 4)
 
     font_name = style_cfg.get("font_name", "Arial Black")
-    font_size = style_cfg.get("font_size", 20)
     primary_color = style_cfg.get("primary_color", "&H00FFFFFF")   # White
     outline_color = style_cfg.get("outline_color", "&H00000000")   # Black
     outline_width = style_cfg.get("outline_width", 3.0)
     shadow_depth = style_cfg.get("shadow_depth", 1.5)
-    alignment = style_cfg.get("alignment", 2)                      # Bottom-center
-    margin_v = style_cfg.get("margin_v", 60)
+
+    if is_short:
+        # Vertical 9:16 settings (safe from Shorts UI overlays)
+        res_x = 1080
+        res_y = 1920
+        font_size = style_cfg.get("short_font_size", 28)
+        alignment = 2  # Bottom-center elevated
+        margin_v = 360  # Raised to avoid bottom title & channel info overlay
+    else:
+        # Standard horizontal 16:9 settings
+        res_x = 1920
+        res_y = 1080
+        font_size = style_cfg.get("font_size", 20)
+        alignment = style_cfg.get("alignment", 2)
+        margin_v = style_cfg.get("margin_v", 60)
 
     highlight_color = emph_cfg.get("highlight_color", "&H002BF7F7") # Bright yellow/gold
     highlight_bold = emph_cfg.get("highlight_bold", True)
@@ -171,13 +184,13 @@ def generate_subtitles(video_path, output_ass_path, output_srt_path=None, output
         return None, None
 
     chunks = group_words_into_lines(words, max_words=max_words)
-    print(f"[Subtitles] Generated {len(chunks)} subtitle display lines.")
+    print(f"[Subtitles] Generated {len(chunks)} subtitle display lines ({'9:16 Vertical' if is_short else '16:9 Horizontal'}).")
 
     # Build ASS Header
     ass_header = f"""[Script Info]
 ScriptType: v4.00+
-PlayResX: 1920
-PlayResY: 1080
+PlayResX: {res_x}
+PlayResY: {res_y}
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]

@@ -43,7 +43,7 @@ def process_all_existing(config, **kwargs):
     for f in files:
         process_video(f, config=config, **kwargs)
 
-def run_self_test(config):
+def run_self_test(config, target_format="long"):
     """
     Creates a 6-second synthetic test video with silence gaps and speech tone,
     then runs it through the entire editing pipeline to test dead-air removal,
@@ -86,7 +86,7 @@ def run_self_test(config):
     cfg_copy["pipeline"]["archive_processed"] = False
     
     # Run test through pipeline
-    out_file = process_video(test_video, config=cfg_copy, custom_output_name="pipeline_selftest")
+    out_file = process_video(test_video, config=cfg_copy, custom_output_name="pipeline_selftest", target_format=target_format)
     print(f"\n🎉 SELF-TEST SUCCEEDED! Verified output at: {out_file}\n")
 
 def main():
@@ -106,7 +106,9 @@ Examples:
     parser.add_argument("--file", "-f", type=str, help="Process a single video file")
     parser.add_argument("--all", "-a", action="store_true", help="Process all videos in raw/")
     parser.add_argument("--test", "-t", action="store_true", help="Run a self-test with a synthetic video")
-    parser.add_argument("--no-short", action="store_true", help="Skip 9:16 Shorts export")
+    parser.add_argument("--long", action="store_true", help="Format as standard 16:9 YouTube widescreen (as-is)")
+    parser.add_argument("--short", action="store_true", help="Format as 9:16 vertical video for YouTube Shorts / Reels")
+    parser.add_argument("--format", choices=["long", "short"], help="Explicitly specify video format ('long' or 'short')")
     parser.add_argument("--no-silence", action="store_true", help="Disable dead-air removal")
     parser.add_argument("--no-denoise", action="store_true", help="Disable audio noise reduction")
     parser.add_argument("--no-subtitles", action="store_true", help="Disable subtitles")
@@ -114,6 +116,15 @@ Examples:
 
     args = parser.parse_args()
     config = load_config(args.config)
+
+    # Determine explicit format flag if specified
+    target_format = None
+    if args.short:
+        target_format = "short"
+    elif args.long:
+        target_format = "long"
+    elif args.format:
+        target_format = args.format
 
     # Apply CLI overrides to config
     if args.no_silence:
@@ -126,11 +137,11 @@ Examples:
     target_file = args.video or args.file
 
     if args.test:
-        run_self_test(config)
+        run_self_test(config, target_format=target_format or "long")
     elif target_file:
-        process_single(target_file, config, no_short=args.no_short)
+        process_single(target_file, config, format=target_format)
     elif args.all:
-        process_all_existing(config, no_short=args.no_short)
+        process_all_existing(config, format=target_format)
     elif args.watch:
         run_watcher()
     else:

@@ -27,10 +27,35 @@ def load_config(config_path="config.yaml"):
     with open(p, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-def process_video(video_path, config=None, custom_output_name=None, **kwargs):
+def ask_format_preference(video_name=None, default="long"):
+    """
+    Asks user interactively whether the video should be standard 16:9 long-form
+    or 9:16 vertical short-form.
+    """
+    name_str = f" for '{video_name}'" if video_name else ""
+    print("\n" + "=" * 65)
+    print(f"📐 SELECT ASPECT RATIO / FORMAT{name_str}:")
+    print("  [1] Long-Form  -> Standard 16:9 YouTube Widescreen (Normal ratio, as is) [Default]")
+    print("  [2] Short-Form -> 9:16 Vertical Video (YouTube Shorts / Reels / TikTok)")
+    print("=" * 65)
+    
+    try:
+        user_choice = input("Enter choice (1 for Long-Form, 2 for Short-Form) [1]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        user_choice = ""
+
+    if user_choice in ["2", "s", "short", "shorts", "vertical"]:
+        print("🎬 Format set: [9:16 Vertical Short-Form]\n")
+        return "short"
+    else:
+        print("🎬 Format set: [16:9 Standard YouTube Long-Form (As-Is)]\n")
+        return "long"
+
+def process_video(video_path, config=None, custom_output_name=None, target_format=None, **kwargs):
     """
     Main automated editing pipeline:
       Raw Video 
+        -> Format Selection (16:9 Normal or 9:16 Vertical)
         -> 1. Silence & Dead-Air Removal (Jump cuts)
         -> 2. Audio Noise Removal & Normalization
         -> 3. Creative Subtitle Generation (Emphasis + Bold)
@@ -43,6 +68,20 @@ def process_video(video_path, config=None, custom_output_name=None, **kwargs):
 
     if config is None:
         config = load_config()
+
+    # Determine format: CLI flag > parameter > config setting > interactive prompt
+    if not target_format:
+        target_format = kwargs.get("format")
+    if not target_format:
+        pref = config.get("format", {}).get("preference", "ask")
+        if pref == "ask":
+            target_format = ask_format_preference(video_path.name, default="long")
+        elif pref == "short":
+            target_format = "short"
+        else:
+            target_format = "long"
+
+    is_short = (target_format == "short")
 
     pipe_cfg = config.get("pipeline", {})
     silence_cfg = config.get("silence_removal", {})
@@ -59,7 +98,7 @@ def process_video(video_path, config=None, custom_output_name=None, **kwargs):
 
     base_name = custom_output_name or video_path.stem
     print("\n" + "=" * 65)
-    print(f"🎬 PROCESSING VIDEO: {video_path.name}")
+    print(f"🎬 PROCESSING VIDEO: {video_path.name} | FORMAT: {'9:16 SHORT' if is_short else '16:9 NORMAL'}")
     print("=" * 65)
 
     current_video = video_path
@@ -106,49 +145,43 @@ def process_video(video_path, config=None, custom_output_name=None, **kwargs):
     subtitles_generated = False
 
     if sub_cfg.get("enabled", True):
-        print("\n[Step 3/4] Transcribing & Generating Creative Bold Subtitles...")
+        print(f"\n[Step 3/4] Transcribing & Generating Subtitles ({'9:16 Vertical' if is_short else '16:9 Normal'})...")
         gen_ass, gen_srt = generate_subtitles(
             video_path=current_video,
             output_ass_path=ass_file,
             output_srt_path=srt_file if sub_cfg.get("save_subtitle_files", True) else None,
             output_txt_path=txt_file,
-            config=config
+            config=config,
+            is_short=is_short
         )
         subtitles_generated = bool(gen_ass and Path(gen_ass).exists())
     else:
         print("\n[Step 3/4] Subtitles skipped (disabled in config).")
 
     # --------------------------------------------------------------------------
-    # Step 4: Final Assembly & Burn-in
+    # Step 4: Final Assembly & Aspect Ratio Export
     # --------------------------------------------------------------------------
-    final_output = out_dir / f"{base_name}_edit.mp4"
-    print("\n[Step 4/4] Finalizing Output Video...")
-
-    if subtitles_generated and sub_cfg.get("burn_into_video", True):
-        print(f"[Export] Burning styled subtitles into final video: {final_output.name}")
-        burn_subtitles_into_video(
+    if is_short:
+        final_output = out_dir / f"{base_name}_short.mp4"
+        print(f"\n[Step 4/4] Finalizing 9:16 Vertical Video: {final_output.name}...")
+        generate_shorts_crop(
             input_video=current_video,
-            ass_subtitle_path=ass_file,
-            output_video=final_output
+            output_video=final_output,
+            ass_subtitle_path=ass_file if (subtitles_generated and sub_cfg.get("burn_into_video", True)) else None
         )
     else:
-        print(f"[Export] Copying finalized video to: {final_output.name}")
-        shutil.copy2(current_video, final_output)
-
-    # --------------------------------------------------------------------------
-    # Optional Shorts 9:16 Center-Crop Export
-    # --------------------------------------------------------------------------
-    short_output = None
-    if config.get("export", {}).get("shorts", True) and not kwargs.get("no_short", False):
-        short_output = out_dir / f"{base_name}_short.mp4"
-        try:
-            generate_shorts_crop(
+        final_output = out_dir / f"{base_name}_edit.mp4"
+        print(f"\n[Step 4/4] Finalizing 16:9 Normal Widescreen Video: {final_output.name}...")
+        if subtitles_generated and sub_cfg.get("burn_into_video", True):
+            print(f"[Export] Burning styled subtitles into normal video: {final_output.name}")
+            burn_subtitles_into_video(
                 input_video=current_video,
-                output_video=short_output,
-                ass_subtitle_path=ass_file if subtitles_generated else None
+                ass_subtitle_path=ass_file,
+                output_video=final_output
             )
-        except Exception as e:
-            print(f"[Shorts] Notice: Shorts export skipped: {e}")
+        else:
+            print(f"[Export] Copying finalized video to: {final_output.name}")
+            shutil.copy2(current_video, final_output)
 
     # --------------------------------------------------------------------------
     # Step 5: Archive & Cleanup
