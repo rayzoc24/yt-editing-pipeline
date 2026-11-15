@@ -162,16 +162,20 @@ def generate_subtitles(video_path, output_ass_path, output_srt_path=None, output
         # Vertical 9:16 settings (safe from Shorts UI overlays)
         res_x = 1080
         res_y = 1920
-        font_size = style_cfg.get("short_font_size", 28)
-        alignment = 2  # Bottom-center elevated
-        margin_v = 360  # Raised to avoid bottom title & channel info overlay
+        font_size = style_cfg.get("short_font_size", 64)
+        alignment = style_cfg.get("short_alignment", 2)  # Bottom-center elevated
+        margin_v = style_cfg.get("short_margin_v", 420)   # Raised to stay clear of bottom title & channel overlay
+        outline_width = style_cfg.get("short_outline_width", 5.5)
+        shadow_depth = style_cfg.get("short_shadow_depth", 2.5)
     else:
-        # Standard horizontal 16:9 settings
+        # Standard horizontal 16:9 settings (large, punchy, easily readable)
         res_x = 1920
         res_y = 1080
-        font_size = style_cfg.get("font_size", 20)
+        font_size = style_cfg.get("font_size", 48)
         alignment = style_cfg.get("alignment", 2)
-        margin_v = style_cfg.get("margin_v", 60)
+        margin_v = style_cfg.get("margin_v", 75)
+        outline_width = style_cfg.get("outline_width", 4.5)
+        shadow_depth = style_cfg.get("shadow_depth", 2.0)
 
     highlight_color = emph_cfg.get("highlight_color", "&H002BF7F7") # Bright yellow/gold
     highlight_bold = emph_cfg.get("highlight_bold", True)

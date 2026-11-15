@@ -42,13 +42,15 @@ subtitles:
   # ASS Subtitle Visual Styling
   style:
     font_name: "Arial Black"       # High-visibility bold font (e.g. Arial Black, Impact, Trebuchet MS)
-    font_size: 20                  # Base font size
+    font_size: 48                  # Font size for 16:9 Long-Form (big, bold, easily readable on phones/laptops)
+    short_font_size: 64            # Font size for 9:16 Shorts (punchy mobile readability)
     primary_color: "&H00FFFFFF"    # ASS format &HAABBGGRR: White
     outline_color: "&H00000000"    # Black outline for crisp contrast against any background
-    outline_width: 3.0             # Outline thickness
-    shadow_depth: 1.5              # Drop shadow
-    alignment: 2                   # 2 = Bottom-Center, 5 = Screen-Center
-    margin_v: 60                   # Vertical margin from screen edge
+    outline_width: 4.5             # Outline thickness
+    shadow_depth: 2.0              # Drop shadow
+    alignment: 2                   # 2 = Bottom-Center
+    margin_v: 75                   # Vertical margin from screen edge
+    short_margin_v: 420            # Vertical margin for Shorts (safe from bottom title & UI buttons)
 
   # Emphasis & Bold Highlighting
   emphasis:
