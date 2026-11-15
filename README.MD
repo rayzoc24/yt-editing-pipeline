@@ -1,6 +1,6 @@
 # YT Pipeline
 
-A local, automated Python and FFmpeg pipeline that handles the mechanical, repetitive parts of video editing for YouTube: removing dead air, normalizing audio, generating creative bold captions, and exporting a 9:16 Shorts cut. You record, it produces a polished rough cut, and you finish it manually.
+A local, automated Python and FFmpeg pipeline that handles the mechanical, repetitive parts of video editing for YouTube: removing dead air, enhancing audio clarity & speech leveling, generating creative bold captions with native Hinglish support (no unwanted English translation), and exporting either standard 16:9 Long-Form or 9:16 Shorts. You record, it produces a polished rough cut, and you finish it manually.
 
 It does **not** write your content, generate synthetic AI videos, or upload anything. Everything runs locally and is 100% free.
 
@@ -27,7 +27,7 @@ yt-pipeline/
 ├── .gitignore                # Ignores heavy video binaries, temp files, and caches
 ├── config.yaml               # Pipeline settings (silence sensitivity, audio, subtitles)
 ├── README.md                 # Project documentation and guide
-├── requirements.txt          # Python dependencies (faster-whisper, pyyaml, watchdog)
+├── requirements.txt          # Python dependencies (faster-whisper, SpeechRecognition, pyyaml, watchdog)
 ├── start_watcher.bat         # 1-click launcher to run background folder watcher
 ├── raw/                      # 📥 Place your raw recordings here (.mp4, .mov, .mkv)
 │   ├── .gitkeep
@@ -40,8 +40,9 @@ yt-pipeline/
     ├── watcher.py            # Continuous folder watcher
     ├── pipeline.py           # Core multi-step editing coordinator
     ├── silence_remover.py    # Dead-air silence detection & cutting
-    ├── audio_enhancer.py     # FFT noise reduction & YouTube loudness normalization
-    ├── subtitle_generator.py # Word-level transcription, bold styling & 9:16 crop
+    ├── audio_enhancer.py     # FFT noise reduction, vocal clarity EQ & YouTube loudness normalization
+    ├── subtitle_generator.py # Word-level transcription, bold styling & resolution auto-scaling
+    ├── hinglish_utils.py     # Devanagari to conversational Latin Hinglish transliterator
     └── ffmpeg_utils.py       # FFmpeg integration & hardware checks
 ```
 
@@ -133,27 +134,27 @@ audio_cleaning:
   dynamic_leveling: true           # Levels out quiet/mumbled speech so every syllable is audible
   loudness_normalize: true         # Broadcast speech standard (-14 LUFS)
 
-# Dynamic Subtitles (Hinglish + English)
+# Dynamic Subtitles (Native Hinglish & English)
 subtitles:
   enabled: true
   model_size: "base"               # tiny, base, small, medium (use "small" for heavy accents)
-  language: "en"                   # "en"
-  hinglish: true                   # Primes Whisper with conversational Hinglish Latin-script vocabulary
+  language: "hinglish"             # "hinglish" (Hindi spoken words written in Latin script, NO English translation), "en", or "hi"
+  hinglish: true                   # Transcribes Hindi speech into natural conversational Latin Hinglish (Gaadi, ghar, sab kuch...)
   max_words_per_segment: 4         # Punchy pacing (3-5 words per line)
   burn_into_video: true            # Burn subtitles into final export
   style:
     font_name: "Arial Black"
-    font_size: 48                  # Auto-scaled to video resolution
+    font_size: 48                  # Auto-scaled to video resolution (7.5% of height for 16:9, ~5.8% for Shorts)
     short_font_size: 64            # Scaled for 9:16 Shorts
     primary_color: "&H00FFFFFF"    # White
   emphasis:
     enabled: true
-    highlight_color: "&H002BF7F7"  # Vibrant Gold / Yellow
+    highlight_color: "&H002BF7F7"  # Vibrant Gold / Yellow (&HAABBGGRR)
     highlight_bold: true           # Adds bold formatting to key words (English & Hinglish)
 
-# Export Options
-export:
-  shorts: true                     # Generate 9:16 vertical center-crop
+# Format & Layout Selection
+format:
+  preference: "ask"                # "ask" (prompts you every time), "long" (16:9 normal), or "short" (9:16 vertical)
   resolution: 1080
 ```
 
