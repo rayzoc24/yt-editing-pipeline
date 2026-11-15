@@ -1,7 +1,13 @@
 import os
+import sys
 import re
 import subprocess
 from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.append(str(SCRIPT_DIR))
+
 from ffmpeg_utils import get_ffmpeg_paths, get_media_info, run_command
 
 def detect_silence_intervals(video_path, noise_threshold_db=-32, min_silence_duration=0.5):

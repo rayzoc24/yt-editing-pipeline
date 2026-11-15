@@ -1,7 +1,13 @@
 import os
+import sys
 import re
 from pathlib import Path
-from ffmpeg_utils import get_ffmpeg_paths, run_command
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.append(str(SCRIPT_DIR))
+
+from ffmpeg_utils import get_ffmpeg_paths, get_media_info, run_command
 
 # Common filler/stop words that should NOT be emphasized
 STOP_WORDS = {
@@ -158,24 +164,34 @@ def generate_subtitles(video_path, output_ass_path, output_srt_path=None, output
     outline_width = style_cfg.get("outline_width", 3.0)
     shadow_depth = style_cfg.get("shadow_depth", 1.5)
 
+    # Probe actual video dimensions to scale subtitles dynamically
+    try:
+        v_info = get_media_info(video_path)
+        v_width = v_info.get("width", 1920)
+        v_height = v_info.get("height", 1080)
+    except Exception:
+        v_width, v_height = 1920, 1080
+
     if is_short:
-        # Vertical 9:16 settings (safe from Shorts UI overlays)
-        res_x = 1080
-        res_y = 1920
-        font_size = style_cfg.get("short_font_size", 64)
+        # Vertical 9:16 layout
+        res_y = v_height
+        res_x = int(v_height * 9 / 16) if v_width > v_height else v_width
+        # Subtitle font ~6% of vertical screen height (large, bold mobile text)
+        font_size = int(res_y * 0.058)
         alignment = style_cfg.get("short_alignment", 2)  # Bottom-center elevated
-        margin_v = style_cfg.get("short_margin_v", 420)   # Raised to stay clear of bottom title & channel overlay
-        outline_width = style_cfg.get("short_outline_width", 5.5)
-        shadow_depth = style_cfg.get("short_shadow_depth", 2.5)
+        margin_v = int(res_y * 0.22)                     # Safe from bottom title overlay
+        outline_width = max(3.5, round(font_size * 0.10, 1))
+        shadow_depth = max(1.5, round(font_size * 0.04, 1))
     else:
-        # Standard horizontal 16:9 settings (large, punchy, easily readable)
-        res_x = 1920
-        res_y = 1080
-        font_size = style_cfg.get("font_size", 48)
+        # Standard horizontal 16:9 layout
+        res_x = v_width
+        res_y = v_height
+        # Subtitle font ~7.5% of video height (big, bold, highly legible)
+        font_size = int(res_y * 0.075)
         alignment = style_cfg.get("alignment", 2)
-        margin_v = style_cfg.get("margin_v", 75)
-        outline_width = style_cfg.get("outline_width", 4.5)
-        shadow_depth = style_cfg.get("shadow_depth", 2.0)
+        margin_v = int(res_y * 0.10)                     # ~10% above bottom edge
+        outline_width = max(3.5, round(font_size * 0.10, 1))
+        shadow_depth = max(1.8, round(font_size * 0.04, 1))
 
     highlight_color = emph_cfg.get("highlight_color", "&H002BF7F7") # Bright yellow/gold
     highlight_bold = emph_cfg.get("highlight_bold", True)

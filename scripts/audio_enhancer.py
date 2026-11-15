@@ -1,5 +1,11 @@
 import os
+import sys
 from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.append(str(SCRIPT_DIR))
+
 from ffmpeg_utils import get_ffmpeg_paths, run_command
 
 def enhance_audio(input_video, output_video, denoise_amount_db=12, highpass_freq=75, normalize=True):
