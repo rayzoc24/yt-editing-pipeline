@@ -9,6 +9,7 @@ dist/
 *.egg-info/
 
 # Environments
+.venv/
 venv/
 env/
 .env
