@@ -27,6 +27,18 @@ raw/processed/*
 out/*
 !out/.gitkeep
 
+# Global media file safeguard (blocks video/audio anywhere in the project)
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.flv
+*.wav
+*.mp3
+*.m4a
+*.aac
+
 # System & Editor
 .vscode/
 .idea/
