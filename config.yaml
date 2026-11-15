@@ -20,21 +20,24 @@ silence_removal:
   padding_duration: 0.12           # Safe margin (in seconds) before and after speech to avoid clipping words
 
 # ------------------------------------------------------------------------------
-# 2. Audio Cleaning & Vocal Enhancement (Noise Removal)
+# 2. Audio Cleaning & Vocal Enhancement (Noise Removal & Clarity)
 # ------------------------------------------------------------------------------
 audio_cleaning:
   enabled: true
   denoise_amount_db: 12            # FFT denoiser strength in dB (8-16 dB cleanly removes fan/room noise)
-  highpass_frequency: 75           # High-pass filter (Hz) to eliminate table bumps, AC low rumble
+  highpass_frequency: 90           # High-pass filter (Hz) to eliminate table bumps, AC low rumble (<90Hz)
+  vocal_clarity_boost: true        # De-muffles poor mics: cuts 350Hz hollow room echo & boosts 3.2kHz vocal presence
+  dynamic_leveling: true           # Automatically levels out quiet/mumbled speech so every word is audible
   loudness_normalize: true         # Standardizes loudness to YouTube speech levels (-14 LUFS)
 
 # ------------------------------------------------------------------------------
-# 3. Dynamic Subtitles (Word-level timestamps & Creative Emphasis)
+# 3. Dynamic Subtitles (Word-level timestamps, Hinglish & Creative Emphasis)
 # ------------------------------------------------------------------------------
 subtitles:
   enabled: true
-  model_size: "base"               # Options: "tiny", "base", "small", "medium" ("base" is fast and accurate)
-  language: "en"                   # "en" or null for automatic multi-language detection
+  model_size: "base"               # Options: "tiny", "base", "small", "medium" ("small" recommended for heavy accents/noise)
+  language: "en"                   # "en" (or null for auto-detect)
+  hinglish: true                   # Primes Whisper with conversational Hinglish Latin-script vocabulary
   max_words_per_segment: 4         # Modern punchy pacing: 3 to 5 words per subtitle line
   burn_into_video: true            # Burn subtitles directly into output video
   save_subtitle_files: true        # Also export standalone .ass and .srt subtitle files

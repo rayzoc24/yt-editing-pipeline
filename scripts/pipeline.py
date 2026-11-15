@@ -130,7 +130,9 @@ def process_video(video_path, config=None, custom_output_name=None, target_forma
             input_video=current_video,
             output_video=denoised_video,
             denoise_amount_db=audio_cfg.get("denoise_amount_db", 12),
-            highpass_freq=audio_cfg.get("highpass_frequency", 75),
+            highpass_freq=audio_cfg.get("highpass_frequency", 90),
+            vocal_clarity_boost=audio_cfg.get("vocal_clarity_boost", True),
+            dynamic_leveling=audio_cfg.get("dynamic_leveling", True),
             normalize=audio_cfg.get("loudness_normalize", True)
         )
     else:

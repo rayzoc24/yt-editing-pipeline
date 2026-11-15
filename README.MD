@@ -124,28 +124,32 @@ silence_removal:
   min_silence_duration: 0.5        # Minimum silent pause (in seconds) to cut out
   padding_duration: 0.12           # Safe margin (seconds) kept around speech
 
-# Audio Cleaning & Normalization
+# Audio Cleaning & Vocal Clarity Enhancement
 audio_cleaning:
   enabled: true
   denoise_amount_db: 12            # FFT denoiser strength in dB
-  highpass_frequency: 75           # Cuts low rumble below 75 Hz
+  highpass_frequency: 90           # Cuts low rumble below 90 Hz
+  vocal_clarity_boost: true        # De-muffles poor mics (cuts 350Hz hollow echo & boosts 3.2kHz presence)
+  dynamic_leveling: true           # Levels out quiet/mumbled speech so every syllable is audible
   loudness_normalize: true         # Broadcast speech standard (-14 LUFS)
 
-# Dynamic Subtitles
+# Dynamic Subtitles (Hinglish + English)
 subtitles:
   enabled: true
-  model_size: "base"               # tiny, base, small, medium
-  language: "en"                   # "en", "hi", etc. or null for auto-detect
+  model_size: "base"               # tiny, base, small, medium (use "small" for heavy accents)
+  language: "en"                   # "en"
+  hinglish: true                   # Primes Whisper with conversational Hinglish Latin-script vocabulary
   max_words_per_segment: 4         # Punchy pacing (3-5 words per line)
   burn_into_video: true            # Burn subtitles into final export
   style:
     font_name: "Arial Black"
-    font_size: 20
+    font_size: 48                  # Auto-scaled to video resolution
+    short_font_size: 64            # Scaled for 9:16 Shorts
     primary_color: "&H00FFFFFF"    # White
   emphasis:
     enabled: true
     highlight_color: "&H002BF7F7"  # Vibrant Gold / Yellow
-    highlight_bold: true           # Adds bold formatting to key words
+    highlight_bold: true           # Adds bold formatting to key words (English & Hinglish)
 
 # Export Options
 export:

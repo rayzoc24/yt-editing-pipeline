@@ -24,13 +24,18 @@ STOP_WORDS = {
     "while", "who", "whom", "why", "with", "would", "you", "your", "yours", "yourself"
 }
 
-# High-impact emotion/emphasis keywords
+# High-impact emotion/emphasis keywords (English & Hinglish)
 HIGH_IMPACT_KEYWORDS = {
+    # English
     "secret", "insane", "crazy", "huge", "massive", "never", "always", "best", "worst", 
     "free", "money", "profit", "mistake", "warning", "danger", "fast", "speed", "easy", 
     "impossible", "ultimate", "hack", "boost", "zero", "first", "million", "billion",
     "stop", "shocking", "critical", "genius", "magic", "win", "fail", "broken", "viral",
-    "perfect", "guaranteed", "proven", "hidden", "truth", "exposed", "top", "unbelievable"
+    "perfect", "guaranteed", "proven", "hidden", "truth", "exposed", "top", "unbelievable",
+    # Hinglish
+    "bohot", "bahut", "mast", "zabardast", "sach", "sachme", "bilkul", "pagal", 
+    "dhyan", "shandar", "zaruri", "jaroori", "ekdum", "bhai", "yaar", "pakka", 
+    "khatarnak", "asli", "pehla", "aakhri", "badiya", "gajab", "dhamaal", "dhansu"
 }
 
 def format_ass_time(seconds):
@@ -79,22 +84,40 @@ def is_emphasis_word(word_clean, is_longest=False):
 
     return False
 
-def transcribe_audio_words(audio_or_video_path, model_size="base", language="en"):
+def transcribe_audio_words(audio_or_video_path, model_size="base", language="en", hinglish=True, initial_prompt=None):
     """
     Transcribes audio with faster-whisper and extracts word-level timestamps.
+    Enhanced for unclear audio (dynamic temperature search) and Hinglish support.
     """
     from faster_whisper import WhisperModel
 
     print(f"[Subtitles] Loading Whisper model ('{model_size}')...")
     model = WhisperModel(model_size, device="cpu", compute_type="int8")
 
-    print(f"[Subtitles] Transcribing audio with word-level timestamps...")
+    # If Hinglish is enabled, prime Whisper to output conversational Hinglish in English/Latin script
+    prompt_text = initial_prompt
+    transcribe_lang = language
+    if hinglish:
+        if not prompt_text:
+            prompt_text = (
+                "Aapka swagat hai video me. Today we will explain this topic step by step. "
+                "Yeh bohot important point hai, dhyan se suniye. Video ko like karein, share karein aur subscribe karein. "
+                "Bhai yeh trick bilkul mast hai, dekhiye aur samjhiye."
+            )
+        if transcribe_lang in ["hinglish", "hi-en"]:
+            transcribe_lang = "en"
+
+    print(f"[Subtitles] Transcribing audio with word-level timestamps (Hinglish: {hinglish})...")
     segments, info = model.transcribe(
         str(audio_or_video_path),
-        language=language,
+        language=transcribe_lang,
+        initial_prompt=prompt_text,
         word_timestamps=True,
         beam_size=5,
-        vad_filter=True
+        vad_filter=True,
+        condition_on_previous_text=False,  # Prevents repeating hallucination loops on unclear/quiet audio
+        temperature=[0.0, 0.2, 0.4, 0.8],  # Dynamic fallback when audio is muffled or noisy
+        no_speech_threshold=0.5
     )
 
     all_words = []
@@ -198,7 +221,15 @@ def generate_subtitles(video_path, output_ass_path, output_srt_path=None, output
     bold_all = emph_cfg.get("bold_all", False)
     emphasis_enabled = emph_cfg.get("enabled", True)
 
-    words = transcribe_audio_words(video_path, model_size=model_size, language=language)
+    hinglish = sub_cfg.get("hinglish", True)
+    initial_prompt = sub_cfg.get("initial_prompt", None)
+    words = transcribe_audio_words(
+        video_path,
+        model_size=model_size,
+        language=language,
+        hinglish=hinglish,
+        initial_prompt=initial_prompt
+    )
     if not words:
         print("[Subtitles] Warning: No spoken words detected in audio.")
         return None, None
